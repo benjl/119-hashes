@@ -8,11 +8,11 @@ from multiprocessing import Pool
 # then searches for the first hash that has a certain number of 119s in it.
 # The first hash to contain a 119 is the hash of 78. The first hash to contain
 # two 119s is hash 2707. From there the probability exponentially increases.
-# The first triple 119 hash is 3283267. Approximately 1 in 2.3 million hashes
+# The first triple 119 hash is 3283267. Approximately 1 in 2.2 million hashes
 # (if I've done my math correctly) has three 119s in it. The first quad 119 is
 # in hash 347477657. As of writing this, the first quint 119 hash has yet to be found.
-# The probability of any hash being the one is about 1 in 401 billion.
-# Again, assuming I've done the math right. 
+# The probability of any hash being a quint 119 is about 1 in 365 billion.
+# Again, assuming I've done the math right. https://www.desmos.com/calculator/ao0dnye9py
 
 def leadingzeros(inp):
     n = 0
