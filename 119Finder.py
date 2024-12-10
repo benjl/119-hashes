@@ -140,6 +140,10 @@ if __name__ == '__main__':
             for r in results: # (119count, n, hash)
                 if r[0] > best:
                     print(f'[{r[0]}] Hash of {r[1]}: {r[2]}')
+                    if len(sys.argv) > 1:
+                        if sys.argv[1] == 'resume':
+                            with open('bests.txt', 'a') as f:
+                                f.write(f'[{r[0]}] Hash of {r[1]}: {r[2]}\n')
                     best = r[0]
                     bestn = r[1]
                     besth = r[2]
