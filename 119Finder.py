@@ -1,6 +1,7 @@
 import hashlib as h
 import time
 import sys
+from multiprocessing import Pool
 
 def leadingzeros(inp):
     n = 0
@@ -83,68 +84,90 @@ def numberof119s_old(inp, best):
                 d = 0
     return n
 
-n = 0
-best = 0
-bestn = 0
-besth = ''
-
-if len(sys.argv) > 1:
-    if sys.argv[1] == 'resume':
-        with open('savedprogress.txt', 'r') as f:
-            for line in f:
-                if line[0] == 'n':
-                    n = int(line[1:])
-                if line[0] == 'b':
-                    best = int(line[1:])
-                if line[0] == 'z':
-                    bestn = int(line[1:])
-                if line[0] == 'h':
-                    besth = line[1:].strip('\n')
-        print(f'Continuing from {n}, best @ {best}: {bestn} -> {besth}')
-
-b = 0
-t = 0
-tick0 = time.time()
-avg = []
-batchsize = 1000000
-    
-try:
-    while best < 64: # Basically forever
-        tick1 = time.time()
-        for _ in range(batchsize):
+def batchtest(start, end, best): # Check for hashes with 119 and return any that have more than best 119s
+    try:
+        bests = []
+        for n in range(start, end): # [start, end)
             hash = h.sha256(bytes(str(n), 'ascii')).hexdigest()
             zn = numberof119s(hash, best)
             if zn > best:
-                print(f'[{zn}] Hash of {n}: {hash}')
-                best = zn
-                bestn = n
-                besth = hash
-            n += 1
-            b += 1
-            t += 1
-        # Progress report
-        tick2 = time.time()
-        avg.append(batchsize / ((tick2 - tick1) * 1000))
-        if tick1-tick0 >= 30:
-            knps = b / ((tick2 - tick0) * 1000)
+                bests.append((zn, n, hash))
+        return bests
+    except KeyboardInterrupt:
+        return ['ki']
+
+if __name__ == '__main__':
+    n = 0
+    best = 0
+    bestn = 0
+    besth = ''
+
+    if len(sys.argv) > 1:
+        if sys.argv[1] == 'resume':
+            with open('savedprogress.txt', 'r') as f:
+                for line in f:
+                    if line[0] == 'n':
+                        n = int(line[1:])
+                    if line[0] == 'b':
+                        best = int(line[1:])
+                    if line[0] == 'z':
+                        bestn = int(line[1:])
+                    if line[0] == 'h':
+                        besth = line[1:].strip('\n')
+            print(f'Continuing from {n}, best @ {best}: {bestn} -> {besth}')
+
+    b = 0
+    t = 0
+    avg = []
+    batchsize = 250000
+        
+    try:
+        while best < 64: # Basically forever
+            tick0 = time.time()
+            results = []
+            
+            with Pool(processes=4) as pool:
+                b1 = pool.apply_async(batchtest, (n,n+batchsize,best))
+                b2 = pool.apply_async(batchtest, (n+batchsize,n+2*batchsize,best))
+                b3 = pool.apply_async(batchtest, (n+2*batchsize,n+3*batchsize,best))
+                b4 = pool.apply_async(batchtest, (n+3*batchsize,n+4*batchsize,best))
+                
+                results = b1.get() + b2.get() + b3.get() + b4.get()
+            
+            if "ki" in results:
+                raise KeyboardInterrupt
+            
+            for r in results: # (119count, n, hash)
+                if r[0] > best:
+                    print(f'[{r[0]}] Hash of {r[1]}: {r[2]}')
+                    best = r[0]
+                    bestn = r[1]
+                    besth = r[2]
+            
+            n += 4*batchsize # Number we're on
+            b += 4*batchsize # Total in batch
+            t += 4*batchsize # Total this session
+            # Progress report
+            tick1 = time.time()
+            knps = b / ((tick1 - tick0) * 1000)
             avg.append(knps)
             print(f'{round(knps, 2)}K iter/s')
             b = 0
-            tick0 = tick2
-except KeyboardInterrupt:
-    if t >= 1000000:
-        print(f'Numbers checked this time: {round(t/1000000, 2)}M')
-    else:
-        print(f'Numbers checked this time: {round(t/1000, 2)}K')
-    if len(sys.argv) > 1:
-        if sys.argv[1] == 'resume':
-            with open('savedprogress.txt', 'w') as f:
-                print(f'Got to {n}, best {best} -> {besth}. Saving.')
-                print(f'Average speed: {round(sum(avg)/max(len(avg),1), 2)}K iter/s')
-                f.write(f'n{n}\n')
-                f.write(f'b{best}\n')
-                f.write(f'z{bestn}\n')
-                f.write(f'h{besth}\n')
-                sys.exit(1)
-    print(f'Got to {n}, best {best} -> {besth}.')
-    print(f'Average speed: {round(sum(avg)/max(len(avg),1), 2)}K iter/s')
+            tick0 = tick1
+    except KeyboardInterrupt:
+        if t >= 1000000:
+            print(f'Numbers checked this time: {round(t/1000000, 2)}M')
+        else:
+            print(f'Numbers checked this time: {round(t/1000, 2)}K')
+        if len(sys.argv) > 1:
+            if sys.argv[1] == 'resume':
+                with open('savedprogress.txt', 'w') as f:
+                    print(f'Got to {n}, best {best} -> {besth}. Saving.')
+                    print(f'Average speed: {round(sum(avg)/max(len(avg),1), 2)}K iter/s')
+                    f.write(f'n{n}\n')
+                    f.write(f'b{best}\n')
+                    f.write(f'z{bestn}\n')
+                    f.write(f'h{besth}\n')
+                    sys.exit(1)
+        print(f'Got to {n}, best {best} -> {besth}.')
+        print(f'Average speed: {round(sum(avg)/max(len(avg),1), 2)}K iter/s')
