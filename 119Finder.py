@@ -119,7 +119,7 @@ if __name__ == '__main__':
     b = 0
     t = 0
     avg = []
-    batchsize = 250000
+    batchsize = 2500000
         
     try:
         while best < 64: # Basically forever
@@ -151,7 +151,10 @@ if __name__ == '__main__':
             tick1 = time.time()
             knps = b / ((tick1 - tick0) * 1000)
             avg.append(knps)
-            print(f'{round(knps, 2)}K iter/s')
+            if knps >= 1000:
+                print(f'{round(knps/1000, 2)}M iter/s')
+            else:
+                print(f'{round(knps, 2)}K iter/s')
             b = 0
             tick0 = tick1
     except KeyboardInterrupt:
