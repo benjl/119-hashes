@@ -3,6 +3,17 @@ import time
 import sys
 from multiprocessing import Pool
 
+# This is a really stupid program. It searches SHA256 hashes for 119s. 
+# It puts the hashes in order of what ascii-encoded number produces them,
+# then searches for the first hash that has a certain number of 119s in it.
+# The first hash to contain a 119 is the hash of 78. The first hash to contain
+# two 119s is hash 2707. From there the probability exponentially increases.
+# The first triple 119 hash is 3283267. Approximately 1 in 2.3 million hashes
+# (if I've done my math correctly) has three 119s in it. The first quad 119 is
+# in hash 347477657. As of writing this, the first quint 119 hash has yet to be found.
+# The probability of any hash being the one is about 1 in 401 billion.
+# Again, assuming I've done the math right. 
+
 def leadingzeros(inp):
     n = 0
     for c in inp:
@@ -11,6 +22,20 @@ def leadingzeros(inp):
         else:
             break
     return n
+    
+def runs(inp, best): # Outputs the longest repetition length in the hash
+    last = ""
+    highest = 1
+    n = 1
+    for c in inp:
+        if c == last:
+            n += 1
+            if n > highest:
+                highest = n
+        else:
+            n = 1
+        last = c
+    return highest
 
 def numberof119s(inp, best):
     # We include best because we can stop looking if there's no way the number can break the record
