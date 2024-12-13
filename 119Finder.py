@@ -14,6 +14,46 @@ from multiprocessing import Pool
 # The probability of any hash being a quint 119 is about 1 in 365 billion.
 # Again, assuming I've done the math right. https://www.desmos.com/calculator/ao0dnye9py
 
+def save_progress(n, best, bestn, besth, savefile=None):
+    if savefile is None:
+        savefile = 'savedprogress.txt'
+    with open(savefile, 'w') as f:
+        f.write(f'n{n}\n')
+        f.write(f'b{best}\n')
+        f.write(f'z{bestn}\n')
+        f.write(f'h{besth}\n')
+
+def load_progress(savefile=None):
+    if savefile is None:
+        savefile = 'savedprogress.txt'
+    n = 0
+    best = 0
+    bestn = 0
+    besth = ''
+    with open(savefile, 'r') as f:
+        for line in f:
+            if line[0] == 'n':
+                n = int(line[1:])
+            if line[0] == 'b':
+                best = int(line[1:])
+            if line[0] == 'z':
+                bestn = int(line[1:])
+            if line[0] == 'h':
+                besth = line[1:].strip('\n')
+    return (n, best, bestn, besth)
+
+def num_str(n):
+    out = ''
+    if n > 1000000000:
+        out = f'{round(n/1000000000, 2)}B'
+    elif n > 1000000:
+        out = f'{round(n/1000000, 2)}M'
+    elif n > 1000:
+        out = f'{round(n/1000, 2)}K'
+    else:
+        out = f'{round(n, 2)}'
+    return out
+
 def leadingzeros(inp):
     n = 0
     for c in inp:
@@ -129,18 +169,10 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1:
         if sys.argv[1] == 'resume':
-            with open('savedprogress.txt', 'r') as f:
-                for line in f:
-                    if line[0] == 'n':
-                        n = int(line[1:])
-                    if line[0] == 'b':
-                        best = int(line[1:])
-                    if line[0] == 'z':
-                        bestn = int(line[1:])
-                    if line[0] == 'h':
-                        besth = line[1:].strip('\n')
-            print(f'Continuing from {n}, best @ {best}: {bestn} -> {besth}')
+            n,best,bestn,besth = load_progress()
+            print(f'Continuing from {num_str(n)}, best @ {best}: {bestn} -> {besth}')
 
+    last_save = 0
     b = 0
     t = 0
     avg = []
@@ -178,28 +210,24 @@ if __name__ == '__main__':
             t += 4*batchsize # Total this session
             # Progress report
             tick1 = time.time()
-            knps = b / ((tick1 - tick0) * 1000)
-            avg.append(knps)
-            if knps >= 1000:
-                print(f'{round(knps/1000, 2)}M iter/s')
-            else:
-                print(f'{round(knps, 2)}K iter/s')
+            nps = b / (tick1 - tick0)
+            avg.append(nps)
+            if len(avg) > 2000:
+                avg = avg[2000:]
+            print(f'{num_str(nps)} iter/s')
+            if t >= last_save + 1000000000: # Save progress every billion numbers
+                print('Saving...')
+                save_progress(n, best, bestn, besth)
+                last_save = t
             b = 0
             tick0 = tick1
     except KeyboardInterrupt:
-        if t >= 1000000:
-            print(f'Numbers checked this time: {round(t/1000000, 2)}M')
-        else:
-            print(f'Numbers checked this time: {round(t/1000, 2)}K')
+        print(f'Numbers checked this time: {num_str(t)}')
         if len(sys.argv) > 1:
             if sys.argv[1] == 'resume':
-                with open('savedprogress.txt', 'w') as f:
-                    print(f'Got to {n}, best {best} -> {besth}. Saving.')
-                    print(f'Average speed: {round(sum(avg)/max(len(avg),1), 2)}K iter/s')
-                    f.write(f'n{n}\n')
-                    f.write(f'b{best}\n')
-                    f.write(f'z{bestn}\n')
-                    f.write(f'h{besth}\n')
-                    sys.exit(1)
-        print(f'Got to {n}, best {best} -> {besth}.')
-        print(f'Average speed: {round(sum(avg)/max(len(avg),1), 2)}K iter/s')
+                print(f'Got to {num_str(n)}, best @ {best}: {bestn} -> {besth}. Saving.')
+                print(f'Average speed: {num_str(sum(avg)/max(len(avg),1))} iter/s')
+                save_progress(n, best, bestn, besth)
+                sys.exit(1)
+        print(f'Got to {num_str(n)}, best @ {best}: {bestn} -> {besth}.')
+        print(f'Average speed: {num_str(sum(avg)/max(len(avg),1))} iter/s')
