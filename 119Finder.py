@@ -161,9 +161,10 @@ def batchtest(start, end, best): # Check for hashes with 119 and return any that
                 bests.append((zn, n, hash))
         return bests
     except KeyboardInterrupt:
-        return ['ki']
+        return 'ki'
 
 if __name__ == '__main__':
+    save_mode = False
     n = 0
     best = 0
     bestn = 0
@@ -171,9 +172,11 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1:
         if sys.argv[1] == 'resume':
+            save_mode = True
             n,best,bestn,besth = load_progress()
             print(f'Continuing from {num_str(n)}, best @ {best}: {bestn} -> {besth}')
 
+    workers = 4
     last_save = 0
     b = 0
     t = 0
@@ -184,32 +187,29 @@ if __name__ == '__main__':
         while best < 64: # Basically forever
             tick0 = time.time()
             results = []
-            
-            with Pool(processes=4) as pool:
-                b1 = pool.apply_async(batchtest, (n,n+batchsize,best))
-                b2 = pool.apply_async(batchtest, (n+batchsize,n+2*batchsize,best))
-                b3 = pool.apply_async(batchtest, (n+2*batchsize,n+3*batchsize,best))
-                b4 = pool.apply_async(batchtest, (n+3*batchsize,n+4*batchsize,best))
+            batches = []
+            with Pool(processes=workers) as pool:
+                for w in range(workers):
+                    batches.append(pool.apply_async(batchtest, (n+batchsize*w, n+batchsize*(w+1), best)))
                 
-                results = b1.get() + b2.get() + b3.get() + b4.get()
+                results = [x.get() for x in batches]
             
             if "ki" in results:
                 raise KeyboardInterrupt
-            
-            for r in results: # (119count, n, hash)
-                if r[0] > best:
-                    print(f'[{r[0]}] Hash of {r[1]}: {r[2]}')
-                    if len(sys.argv) > 1:
-                        if sys.argv[1] == 'resume':
+            for batch in results:
+                for r in batch: # (119count, n, hash)
+                    if r[0] > best:
+                        print(f'[{r[0]}] Hash of {r[1]}: {r[2]}')
+                        if save_mode:
                             with open('bests.txt', 'a') as f:
                                 f.write(f'[{r[0]}] Hash of {r[1]}: {r[2]}\n')
-                    best = r[0]
-                    bestn = r[1]
-                    besth = r[2]
+                        best = r[0]
+                        bestn = r[1]
+                        besth = r[2]
             
-            n += 4*batchsize # Number we're on
-            b += 4*batchsize # Total in batch
-            t += 4*batchsize # Total this session
+            n += workers*batchsize # Number we're on
+            b += workers*batchsize # Total in batch
+            t += workers*batchsize # Total this session
             # Progress report
             tick1 = time.time()
             nps = b / (tick1 - tick0)
@@ -217,7 +217,7 @@ if __name__ == '__main__':
             if len(avg) > 2000:
                 avg = avg[2000:]
             print(f'{num_str(nps)} iter/s')
-            if t >= last_save + 1000000000: # Save progress every billion numbers
+            if t >= last_save + 1000000000 and save_mode: # Save progress every billion numbers
                 print(f'Saving... {num_str(t)} this session')
                 save_progress(n, best, bestn, besth)
                 last_save = t
@@ -225,11 +225,10 @@ if __name__ == '__main__':
             tick0 = tick1
     except KeyboardInterrupt:
         print(f'Numbers checked this time: {num_str(t)}')
-        if len(sys.argv) > 1:
-            if sys.argv[1] == 'resume':
-                print(f'Got to {num_str(n)}, best @ {best}: {bestn} -> {besth}. Saving.')
-                print(f'Average speed: {num_str(sum(avg)/max(len(avg),1))} iter/s')
-                save_progress(n, best, bestn, besth)
-                sys.exit(1)
+        if save_mode:
+            print(f'Got to {num_str(n)}, best @ {best}: {bestn} -> {besth}. Saving.')
+            print(f'Average speed: {num_str(sum(avg)/max(len(avg),1))} iter/s')
+            save_progress(n, best, bestn, besth)
+            sys.exit(1)
         print(f'Got to {num_str(n)}, best @ {best}: {bestn} -> {besth}.')
         print(f'Average speed: {num_str(sum(avg)/max(len(avg),1))} iter/s')
