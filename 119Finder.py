@@ -79,84 +79,12 @@ def runs(inp, best): # Outputs the longest repetition length in the hash
         last = c
     return highest
 
-def numberof119s(inp, best):
-    # We include best because we can stop looking if there's no way the number can break the record
-    # by a certain point. For example, if the best is 6, there needs to be at least one 119 in the
-    # first 64-(3*6)=46 characters. If not, 
-    n = 0
-    d = 0
-    end = -3*best if best > 0 else 64
-    for c in inp[:end]:
-        if d == 0:
-            if c == '1':
-                d = 1
-            else:
-                d = 0
-        elif d == 1:
-            if c == '1':
-                d = 2
-            else:
-                d = 0
-        elif d == 2:
-            if c == '1':
-                d = 2
-            elif c == '9':
-                d = 0
-                n += 1
-            else:
-                d = 0
-    if n >= 1 and best > 0:
-        for c in inp[end:]:
-            if d == 0:
-                if c == '1':
-                    d = 1
-                else:
-                    d = 0
-            elif d == 1:
-                if c == '1':
-                    d = 2
-                else:
-                    d = 0
-            elif d == 2:
-                if c == '1':
-                    d = 2
-                elif c == '9':
-                    d = 0
-                    n += 1
-                else:
-                    d = 0
-    return n
-    
-def numberof119s_old(inp, best):
-    n = 0
-    d = 0
-    for c in inp:
-        if d == 0:
-            if c == '1':
-                d = 1
-            else:
-                d = 0
-        elif d == 1:
-            if c == '1':
-                d = 2
-            else:
-                d = 0
-        elif d == 2:
-            if c == '1':
-                d = 2
-            elif c == '9':
-                d = 0
-                n += 1
-            else:
-                d = 0
-    return n
-
 def batchtest(start, end, best): # Check for hashes with 119 and return any that have more than best 119s
     try:
         bests = []
         for n in range(start, end): # [start, end)
             hash = h.sha256(bytes(str(n), 'ascii')).hexdigest()
-            zn = numberof119s(hash, best)
+            zn = hash.count('119')
             if zn > best:
                 bests.append((zn, n, hash))
         return bests
@@ -184,7 +112,7 @@ if __name__ == '__main__':
     batchsize = 2500000
         
     try:
-        while best < 64: # Basically forever
+        while best < 21: # Basically forever
             tick0 = time.time()
             results = []
             batches = []
@@ -216,7 +144,7 @@ if __name__ == '__main__':
             avg.append(nps)
             if len(avg) > 2000:
                 avg = avg[2000:]
-            print(f'{num_str(nps)} iter/s')
+            print(f'{num_str(t)} checked ({num_str(nps)} nps)')
             if t >= last_save + 1000000000 and save_mode: # Save progress every billion numbers
                 print(f'Saving... {num_str(t)} this session')
                 save_progress(n, best, bestn, besth)
