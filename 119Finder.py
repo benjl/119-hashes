@@ -24,7 +24,6 @@ def save_progress(n, best, bestn, besth, savefile=None):
         f.write(f'h{besth}\n')
 
 def collection(count, n, hash, savefile=None):
-    print(f'Found [{count}] {n} -> {hash})')
     if savefile is None:
         savefile = 'collection.txt'
     with open(savefile, 'a') as f:
@@ -100,16 +99,21 @@ def batchtest(start, end, best): # Check for hashes with 119 and return any that
 
 if __name__ == '__main__':
     save_mode = False
+    collect_mode = False
     n = 0
     best = 0
     bestn = 0
     besth = ''
 
     if len(sys.argv) > 1:
-        if sys.argv[1] == 'resume':
+        if 'resume' in sys.argv:
             save_mode = True
+            collect_mode = True
             n,best,bestn,besth = load_progress()
             print(f'Continuing from {num_str(n)}, best [{best}] {bestn} -> {besth}')
+        if 'collect' in sys.argv:
+            print('Collection mode active')
+            collect_mode = True
 
     workers = 4
     last_save = 0
@@ -133,16 +137,18 @@ if __name__ == '__main__':
                 raise KeyboardInterrupt
             for batch in results:
                 for r in batch: # (119count, n, hash)
-                    if r[0] > 3 and save_mode: # Add notable quad+ 119s to The Collection
+                    if r[0] > 3 and collect_mode: # Add notable quad+ 119s to The Collection
                         collection(r[0], r[1], r[2])
                     if r[0] > best:
                         print(f'New best: Found [{r[0]}] {r[1]} -> {r[2]}')
                         if save_mode:
                             with open('bests.txt', 'a') as f:
-                                f.write(f'[{r[0]}] Hash of {r[1]}: {r[2]}\n')
+                                f.write(f'[{r[0]}] {r[1]} -> {r[2]}\n')
                         best = r[0]
                         bestn = r[1]
                         besth = r[2]
+                    elif r[0] > 3:
+                        print(f'Found [{r[0]}] {r[1]} -> {r[2]}')
             
             n += workers*batchsize # Number we're on
             b += workers*batchsize # Total in batch
