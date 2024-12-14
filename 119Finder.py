@@ -42,13 +42,15 @@ def load_progress(savefile=None):
                 besth = line[1:].strip('\n')
     return (n, best, bestn, besth)
 
-def num_str(n):
+def num_str(n): # 999 999.99K 999.99M 999.99B 999.99T
     out = ''
-    if n > 1000000000:
+    if n >= 1000000000000:
+        out = f'{round(n/1000000000000, 2)}T'
+    elif n >= 1000000000:
         out = f'{round(n/1000000000, 2)}B'
-    elif n > 1000000:
+    elif n >= 1000000:
         out = f'{round(n/1000000, 2)}M'
-    elif n > 1000:
+    elif n >= 1000:
         out = f'{round(n/1000, 2)}K'
     else:
         out = f'{round(n, 2)}'
@@ -216,7 +218,7 @@ if __name__ == '__main__':
                 avg = avg[2000:]
             print(f'{num_str(nps)} iter/s')
             if t >= last_save + 1000000000: # Save progress every billion numbers
-                print('Saving...')
+                print(f'Saving... {num_str(t)} this session')
                 save_progress(n, best, bestn, besth)
                 last_save = t
             b = 0
