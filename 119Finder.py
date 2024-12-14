@@ -23,6 +23,13 @@ def save_progress(n, best, bestn, besth, savefile=None):
         f.write(f'z{bestn}\n')
         f.write(f'h{besth}\n')
 
+def collection(count, n, hash, savefile=None):
+    print(f'Found [{count}] {n} -> {hash})')
+    if savefile is None:
+        savefile = 'collection.txt'
+    with open(savefile, 'a') as f:
+        f.write(f'[{count}] {n} -> {hash}\n')
+
 def load_progress(savefile=None):
     if savefile is None:
         savefile = 'savedprogress.txt'
@@ -85,7 +92,7 @@ def batchtest(start, end, best): # Check for hashes with 119 and return any that
         for n in range(start, end): # [start, end)
             hash = h.sha256(bytes(str(n), 'ascii')).hexdigest()
             zn = hash.count('119')
-            if zn > best:
+            if zn > min(3, best): # Always report any quad+ 119s found
                 bests.append((zn, n, hash))
         return bests
     except KeyboardInterrupt:
@@ -102,14 +109,14 @@ if __name__ == '__main__':
         if sys.argv[1] == 'resume':
             save_mode = True
             n,best,bestn,besth = load_progress()
-            print(f'Continuing from {num_str(n)}, best @ {best}: {bestn} -> {besth}')
+            print(f'Continuing from {num_str(n)}, best [{best}] {bestn} -> {besth}')
 
     workers = 4
     last_save = 0
     b = 0
     t = 0
     avg = []
-    batchsize = 2500000
+    batchsize = 5000000
         
     try:
         while best < 21: # Basically forever
@@ -126,8 +133,10 @@ if __name__ == '__main__':
                 raise KeyboardInterrupt
             for batch in results:
                 for r in batch: # (119count, n, hash)
+                    if r[0] > 3 and save_mode: # Add notable quad+ 119s to The Collection
+                        collection(r[0], r[1], r[2])
                     if r[0] > best:
-                        print(f'[{r[0]}] Hash of {r[1]}: {r[2]}')
+                        print(f'New best: Found [{r[0]}] {r[1]} -> {r[2]}')
                         if save_mode:
                             with open('bests.txt', 'a') as f:
                                 f.write(f'[{r[0]}] Hash of {r[1]}: {r[2]}\n')
@@ -146,7 +155,7 @@ if __name__ == '__main__':
                 avg = avg[2000:]
             print(f'{num_str(t)} checked ({num_str(nps)} nps)')
             if t >= last_save + 1000000000 and save_mode: # Save progress every billion numbers
-                print(f'Saving... {num_str(t)} this session')
+                print(f'Saving...')
                 save_progress(n, best, bestn, besth)
                 last_save = t
             b = 0
@@ -154,9 +163,9 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print(f'Numbers checked this time: {num_str(t)}')
         if save_mode:
-            print(f'Got to {num_str(n)}, best @ {best}: {bestn} -> {besth}. Saving.')
-            print(f'Average speed: {num_str(sum(avg)/max(len(avg),1))} iter/s')
+            print(f'Got to {num_str(n)}, best [{best}] {bestn} -> {besth}. Saving.')
+            print(f'Average speed: {num_str(sum(avg)/max(len(avg),1))} nps')
             save_progress(n, best, bestn, besth)
             sys.exit(1)
-        print(f'Got to {num_str(n)}, best @ {best}: {bestn} -> {besth}.')
-        print(f'Average speed: {num_str(sum(avg)/max(len(avg),1))} iter/s')
+        print(f'Got to {num_str(n)}, best [{best}] {bestn} -> {besth}.')
+        print(f'Average speed: {num_str(sum(avg)/max(len(avg),1))} nps')
