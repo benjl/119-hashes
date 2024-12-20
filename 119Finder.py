@@ -10,7 +10,7 @@ from multiprocessing import Pool
 # two 119s is hash 2707. From there the probability exponentially increases.
 # The first triple 119 hash is 3283267. Approximately 1 in 2.2 million hashes
 # (if I've done my math correctly) has three 119s in it. The first quad 119 is
-# in hash 347477657. As of writing this, the first quint 119 hash has yet to be found.
+# in hash 347477657. As of writing this, the first quint 119 hash is 834152113309.
 # The probability of any hash being a quint 119 is about 1 in 365 billion.
 # Again, assuming I've done the math right. https://www.desmos.com/calculator/ao0dnye9py
 
