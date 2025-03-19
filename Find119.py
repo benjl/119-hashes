@@ -86,16 +86,20 @@ def runs(inp, best): # Outputs the longest repetition length in the hash
     return highest
 
 def batchtest(start, end, best): # Check for hashes with 119 and return any that have more than best 119s
+    hash = ''
+    hasher = h.sha256()
     try:
         bests = []
         for n in range(start, end): # [start, end)
-            hash = h.sha256(bytes(str(n), 'ascii')).hexdigest()
+            jash = hasher.copy()
+            jash.update(bytes(str(n), 'ascii'))
+            hash = jash.hexdigest()
             zn = hash.count('119')
             if zn > min(3, best): # Always report any quad+ 119s found
                 bests.append((zn, n, hash))
         return bests
     except KeyboardInterrupt:
-        return 'ki'
+        return ['ki']
 
 if __name__ == '__main__':
     save_mode = False
@@ -133,7 +137,7 @@ if __name__ == '__main__':
                 
                 results = [x.get() for x in batches]
             
-            if "ki" in results:
+            if ["ki"] in results:
                 raise KeyboardInterrupt
             for batch in results:
                 for r in batch: # (119count, n, hash)
