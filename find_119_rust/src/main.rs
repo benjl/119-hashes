@@ -110,7 +110,7 @@ fn save_best(new_best: &BestHash) {
     }
 }
 
-fn save_progress(current_num: usize, current_best: BestHash) {
+fn save_progress(current_num: usize, current_best: &BestHash) {
     let data = String::from(format!("n{}\nb{}\nz{}\nh{}\n", current_num, current_best.count, current_best.number, current_best.hash));
     fs::write("savedprogress.txt", data).expect("Error saving to file.");
 }
@@ -118,11 +118,13 @@ fn save_progress(current_num: usize, current_best: BestHash) {
 fn main() {
     const BATCH_SIZE: usize = 5_000_000;
     const WORKERS: usize = 4;
+    const SAVE_INTERVAL: usize = 100; // Save every n progress updates (1 progress udpate = BATCH_SIZE * WORKERS numbers)
 
     let mut save_mode = false; // Save mode resumes from saved progress, saves when closing, and adds best 119s to bests.txt
 
     let mut current_number = 0;
     let mut session_total = 0;
+    let mut loops_since_saving = 0;
     let mut best = BestHash {
         number: 0,
         hash: String::new(),
@@ -179,6 +181,13 @@ fn main() {
 
         current_number += WORKERS * BATCH_SIZE;
         session_total += WORKERS * BATCH_SIZE;
+        loops_since_saving += 1;
+
+        if loops_since_saving == SAVE_INTERVAL && save_mode {
+            println!("Autosaving...");
+            save_progress(current_number, &best);
+            loops_since_saving = 0;
+        }
 
         let time1 = SystemTime::now();
         let nps = (WORKERS * BATCH_SIZE) as f32 / time1.duration_since(time0).expect("Clock err").as_secs_f32();
@@ -195,7 +204,7 @@ fn main() {
     println!("Numbers checked this time: {}", fmt_int(session_total));
     println!("Got to {}, best [{}] {} -> {}.", fmt_int(current_number), best.count, best.number, best.hash);
     if save_mode {
-        save_progress(current_number, best);
+        save_progress(current_number, &best);
     }
     // let args: Vec<String> = env::args().collect();
     // dbg!(args);
