@@ -160,6 +160,17 @@ fn main() {
             }));
         }
 
+        while !threads[0].is_finished() {
+            while let Ok(msg) = rx.try_recv() {
+                match msg.to_lowercase().as_str() {
+                    "quit" => { println!("Quitting..."); break 'main_loop; },
+                    _ => println!("Unknown command: {msg}")
+                }
+            }
+
+            thread::sleep(std::time::Duration::from_millis(20));
+        }
+
         let mut results: Vec<Vec<BestHash>> = Vec::with_capacity(WORKERS);
         for thr in threads {
             results.push(thr.join().unwrap());
@@ -192,13 +203,6 @@ fn main() {
         let time1 = SystemTime::now();
         let nps = (WORKERS * BATCH_SIZE) as f32 / time1.duration_since(time0).expect("Clock err").as_secs_f32();
         println!("{} checked ({} nps)", fmt_int(session_total), fmt_int(nps as usize));
-
-        while let Ok(msg) = rx.try_recv() {
-            match msg.to_lowercase().as_str() {
-                "quit" => { println!("Quitting..."); break 'main_loop; },
-                _ => println!("Unknown command: {msg}")
-            }
-        }
     }
 
     println!("Numbers checked this time: {}", fmt_int(session_total));
