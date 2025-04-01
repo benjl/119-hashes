@@ -1,7 +1,8 @@
 use std::io;
+use std::io::Write;
 use sha256::digest;
 use std::env;
-use std::cmp::min;
+use std::cmp::{min, max};
 use std::time::SystemTime;
 use std::thread;
 use std::sync::mpsc;
@@ -97,11 +98,28 @@ fn load_progress() -> (usize, BestHash) {
     return (loaded_num, loaded_best);
 }
 
+fn save_best(new_best: &BestHash) {
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open("bests.txt")
+        .unwrap();
+
+    if let Err(e) = writeln!(file, "[{}] {} -> {}", new_best.count, new_best.number, new_best.hash) {
+        eprintln!("Error writing to file: {}", e);
+    }
+}
+
+fn save_progress(current_num: usize, current_best: BestHash) {
+    let data = String::from(format!("n{}\nb{}\nz{}\nh{}\n", current_num, current_best.count, current_best.number, current_best.hash));
+    fs::write("savedprogress.txt", data).expect("Error saving to file.");
+}
+
 fn main() {
     const BATCH_SIZE: usize = 5_000_000;
     const WORKERS: usize = 4;
 
-    let mut save_mode = false;
+    let mut save_mode = false; // Save mode resumes from saved progress, saves when closing, and adds best 119s to bests.txt
 
     let mut current_number = 0;
     let mut session_total = 0;
@@ -150,7 +168,10 @@ fn main() {
                 if r.count > best.count {
                     println!("New best: Found [{}] {} -> {}", r.count, r.number, r.hash);
                     best = r;
-                } else if r.count > 3 {
+                    if save_mode {
+                        save_best(&best);
+                    }
+                } else if r.count >= max(4, best.count - 1) {
                     println!("Found [{}] {} -> {}", r.count, r.number, r.hash);
                 }
             }
@@ -173,6 +194,9 @@ fn main() {
 
     println!("Numbers checked this time: {}", fmt_int(session_total));
     println!("Got to {}, best [{}] {} -> {}.", fmt_int(current_number), best.count, best.number, best.hash);
+    if save_mode {
+        save_progress(current_number, best);
+    }
     // let args: Vec<String> = env::args().collect();
     // dbg!(args);
     // let mut input = String::new();
