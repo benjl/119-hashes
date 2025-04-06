@@ -1,3 +1,4 @@
+use std::fmt::write;
 use std::io;
 use std::io::Write;
 use sha256::digest;
@@ -57,7 +58,7 @@ fn batch_test(start: usize, end: usize, best: usize) -> Vec<BestHash> {
     for n in start..end {
         let h = digest(n.to_string());
         let c = count_119s(&h);
-        if c > min(3, best) {
+        if c >= min(3, best) {
             bests.push(BestHash { number: n, hash: h, count: c });
         }
     }
@@ -98,6 +99,18 @@ fn load_progress() -> (usize, BestHash) {
     return (loaded_num, loaded_best);
 }
 
+fn save_collection(found_number: &BestHash) {
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open("collection.txt")
+        .unwrap();
+
+    if let Err(e) = writeln!(file, "[{}] {} -> {}", found_number.count, found_number.number, found_number.hash) {
+        eprintln!("error writing to file: {}", e);
+    }
+}
+
 fn save_best(new_best: &BestHash) {
     let mut file = fs::OpenOptions::new()
         .write(true)
@@ -117,14 +130,15 @@ fn save_progress(current_num: usize, current_best: &BestHash) {
 
 fn main() {
     const BATCH_SIZE: usize = 5_000_000;
-    const WORKERS: usize = 4;
+    let mut workers: usize = 4;
     const SAVE_INTERVAL: usize = 100; // Save every n progress updates (1 progress udpate = BATCH_SIZE * WORKERS numbers)
 
-    let mut save_mode = false; // Save mode resumes from saved progress, saves when closing, and adds best 119s to bests.txt
+    let mut save_mode = false; // Save mode resumes from saved progress, saves when closing, and adds best 119s to bests.txt and collection.txt
 
     let mut current_number = 0;
     let mut session_total = 0;
     let mut loops_since_saving = 0;
+    let mut num_found: Vec<usize> = vec![0;21];
     let mut best = BestHash {
         number: 0,
         hash: String::new(),
@@ -133,10 +147,14 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
-        if args.iter().any(|x| x == "resume") {
+        if args.iter().any(|x| x.to_lowercase() == "resume") {
             save_mode = true;
             (current_number, best) = load_progress();
             println!("Resuming from {}, Best: [{}] {} -> {}", fmt_int(current_number), best.count, best.number, best.hash);
+        }
+        if args.iter().any(|x| x.to_lowercase() == "slow") {
+            workers = 1;
+            println!("Slow mode enabled.");
         }
     }
 
@@ -153,8 +171,8 @@ fn main() {
 
     'main_loop: loop {
         let time0 = SystemTime::now();
-        let mut threads = Vec::with_capacity(WORKERS);
-        for i in 0..WORKERS {
+        let mut threads = Vec::with_capacity(workers);
+        for i in 0..workers {
             threads.push(thread::spawn(move || {
                 return batch_test(current_number + i * BATCH_SIZE, current_number + (i+1) * BATCH_SIZE, best.count);
             }));
@@ -164,6 +182,13 @@ fn main() {
             while let Ok(msg) = rx.try_recv() {
                 match msg.to_lowercase().as_str() {
                     "quit" => { println!("Quitting..."); break 'main_loop; },
+                    "found" => {
+                        for i in 3..21 {
+                            if num_found[i] > 0 {
+                                println!("[{}]: Found {}", i, num_found[i]);
+                            }
+                        }
+                    },
                     _ => println!("Unknown command: {msg}")
                 }
             }
@@ -171,27 +196,32 @@ fn main() {
             thread::sleep(std::time::Duration::from_millis(20));
         }
 
-        let mut results: Vec<Vec<BestHash>> = Vec::with_capacity(WORKERS);
+        let mut results: Vec<Vec<BestHash>> = Vec::with_capacity(workers);
         for thr in threads {
             results.push(thr.join().unwrap());
         }
 
         for result_batch in results {
             for r in result_batch {
+                num_found[r.count] += 1;
                 if r.count > best.count {
                     println!("New best: Found [{}] {} -> {}", r.count, r.number, r.hash);
                     best = r;
                     if save_mode {
                         save_best(&best);
+                        save_collection(&best);
                     }
                 } else if r.count >= max(4, best.count - 1) {
                     println!("Found [{}] {} -> {}", r.count, r.number, r.hash);
+                    if save_mode {
+                        save_collection(&r);
+                    }
                 }
             }
         }
 
-        current_number += WORKERS * BATCH_SIZE;
-        session_total += WORKERS * BATCH_SIZE;
+        current_number += workers * BATCH_SIZE;
+        session_total += workers * BATCH_SIZE;
         loops_since_saving += 1;
 
         if loops_since_saving == SAVE_INTERVAL && save_mode {
@@ -201,21 +231,18 @@ fn main() {
         }
 
         let time1 = SystemTime::now();
-        let nps = (WORKERS * BATCH_SIZE) as f32 / time1.duration_since(time0).expect("Clock err").as_secs_f32();
+        let nps = (workers * BATCH_SIZE) as f32 / time1.duration_since(time0).expect("Clock err").as_secs_f32();
         println!("{} checked ({} nps)", fmt_int(session_total), fmt_int(nps as usize));
     }
 
     println!("Numbers checked this time: {}", fmt_int(session_total));
     println!("Got to {}, best [{}] {} -> {}.", fmt_int(current_number), best.count, best.number, best.hash);
+    for i in 3..21 {
+        if num_found[i] > 0 {
+            println!("    [{}]: Found {}", i, num_found[i]);
+        }
+    }
     if save_mode {
         save_progress(current_number, &best);
     }
-    // let args: Vec<String> = env::args().collect();
-    // dbg!(args);
-    // let mut input = String::new();
-    // io::stdin().read_line(&mut input).expect("Something went wrong.");
-    // let number = input.trim();
-    // let h = digest(number);
-    // let hcount = count_119s(&h);
-    // println!("Hash of {}: {}, Count: {}", number, h, hcount);
 }
