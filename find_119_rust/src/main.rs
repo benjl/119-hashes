@@ -74,7 +74,7 @@ fn benchmark() {
 }
 
 fn load_progress() -> (usize, BestHash) {
-    let resume_data = fs::read_to_string(".\\savedprogress.txt").expect("Error reading file.");
+    let resume_data = fs::read_to_string("savedprogress.txt").expect("Error reading file.");
     let lines: Vec<&str> = resume_data.split("\n").collect();
 
     let mut loaded_num: usize = 0;
