@@ -134,6 +134,7 @@ fn main() {
     const SAVE_INTERVAL: usize = 100; // Save every n progress updates (1 progress udpate = BATCH_SIZE * WORKERS numbers)
 
     let mut save_mode = false; // Save mode resumes from saved progress, saves when closing, and adds best 119s to bests.txt and collection.txt
+    let mut input_enabled = true;
 
     let mut current_number = 0;
     let mut session_total = 0;
@@ -156,18 +157,24 @@ fn main() {
             workers = 1;
             println!("Slow mode enabled.");
         }
+        if args.iter().any(|x| x.to_lowercase() == "noinput") {
+            input_enabled = false;
+            println!("Disabled input.");
+        }
     }
 
     let (tx, rx) = mpsc::channel();
-    thread::spawn(move || {
-        let stdin = io::stdin();
-        loop {
-            let mut line = String::new();
-            stdin.read_line(&mut line).expect("Failed for some reason");
-            let cmd = line.trim_end().to_string();
-            tx.send(cmd).unwrap();
-        }
-    });
+    if input_enabled {
+        thread::spawn(move || {
+            let stdin = io::stdin();
+            loop {
+                let mut line = String::new();
+                stdin.read_line(&mut line).expect("Failed for some reason");
+                let cmd = line.trim_end().to_string();
+                tx.send(cmd).unwrap();
+            }
+        });
+    }
 
     'main_loop: loop {
         let time0 = SystemTime::now();
