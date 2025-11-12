@@ -9,6 +9,7 @@ use std::time::SystemTime;
 use std::thread;
 use std::sync::mpsc;
 use std::fs;
+use ctrlc;
 
 struct BestHash {
     number: usize,
@@ -173,6 +174,13 @@ fn main() {
             println!("Enabled input.");
         }
     }
+    
+    let (quit_tx, quit_rx) = mpsc::channel();
+    ctrlc::set_handler(move || {
+        println!("Signal received, saving and quitting...");
+        quit_tx.send("quit").unwrap();
+    }).expect("Error creating ctrl-c handler");
+        
 
     let (tx, rx) = mpsc::channel();
     if input_enabled {
@@ -197,6 +205,12 @@ fn main() {
         }
 
         while !threads[0].is_finished() {
+            if let Ok(quit_msg) = quit_rx.try_recv() {
+                match quit_msg {
+                    "quit" => { println!("Quitting..."); break 'main_loop; },
+                    _ => panic!("Unreachable")
+                }
+            }
             while let Ok(msg) = rx.try_recv() {
                 match msg.to_lowercase().as_str() {
                     "quit" => { println!("Quitting..."); break 'main_loop; },
