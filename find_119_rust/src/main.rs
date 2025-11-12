@@ -130,11 +130,11 @@ fn save_progress(current_num: usize, current_best: &BestHash) {
 
 fn main() {
     const BATCH_SIZE: usize = 5_000_000;
-    let mut workers: usize = 4;
+    let mut workers: usize = 1;
     const SAVE_INTERVAL: usize = 100; // Save every n progress updates (1 progress udpate = BATCH_SIZE * WORKERS numbers)
 
     let mut save_mode = false; // Save mode resumes from saved progress, saves when closing, and adds best 119s to bests.txt and collection.txt
-    let mut input_enabled = true;
+    let mut input_enabled = false;
 
     let mut current_number = 0;
     let mut session_total = 0;
@@ -153,13 +153,13 @@ fn main() {
             (current_number, best) = load_progress();
             println!("Resuming from {}, Best: [{}] {} -> {}", fmt_int(current_number), best.count, best.number, best.hash);
         }
-        if args.iter().any(|x| x.to_lowercase() == "slow") {
-            workers = 1;
-            println!("Slow mode enabled.");
+        if args.iter().any(|x| x.to_lowercase() == "fast") {
+            workers = 4;
+            println!("Fast mode enabled.");
         }
-        if args.iter().any(|x| x.to_lowercase() == "noinput") {
-            input_enabled = false;
-            println!("Disabled input.");
+        if args.iter().any(|x| x.to_lowercase() == "input") {
+            input_enabled = true;
+            println!("Enabled input.");
         }
     }
 

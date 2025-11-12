@@ -14,4 +14,4 @@ RUN chmod +x /init.sh
 
 WORKDIR /usr/119rust
 ENTRYPOINT ["/bin/bash", "/init.sh"]
-CMD ["/usr/119rust/find_119_rust", "slow", "resume", "noinput"]
+CMD ["/usr/119rust/find_119_rust", "resume"]
