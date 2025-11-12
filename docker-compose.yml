@@ -1,0 +1,7 @@
+services:
+  119rust:
+    image: benjl/119:latest
+    container_name: 119rust
+    restart: unless-stopped
+    volumes:
+      - ./resume:/usr/119rust/resume
