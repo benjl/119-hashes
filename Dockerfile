@@ -9,9 +9,5 @@ FROM alpine:3
 RUN apk add --no-cache bash gcompat libstdc++
 COPY --from=builder /usr/src/find_119_rust/target/release/find_119_rust /usr/119rust/find_119_rust
 
-COPY init.sh /init.sh
-RUN chmod +x /init.sh
-
-WORKDIR /usr/119rust
-ENTRYPOINT ["/bin/bash", "/init.sh"]
+WORKDIR /usr/119rust/
 CMD ["/usr/119rust/find_119_rust", "resume"]

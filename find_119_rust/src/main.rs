@@ -1,5 +1,6 @@
 use std::fmt::write;
 use std::io;
+use std::io::ErrorKind;
 use std::io::Write;
 use sha256::digest;
 use std::env;
@@ -74,7 +75,17 @@ fn benchmark() {
 }
 
 fn load_progress() -> (usize, BestHash) {
-    let resume_data = fs::read_to_string("savedprogress.txt").expect("Error reading file.");
+    let resume_data_result = fs::read_to_string("resume/savedprogress.txt");
+    let resume_data = match resume_data_result {
+        Ok(file)=> file,
+        Err(error) => match error.kind() {
+            ErrorKind::NotFound => {
+                println!("Error reading saved progress file.");
+                String::from("n0\nb0\nz0\nh0\n")
+            },
+            _ => { panic!("Problem opening file: {error:?}"); }
+        }
+    };
     let lines: Vec<&str> = resume_data.split("\n").collect();
 
     let mut loaded_num: usize = 0;
@@ -101,9 +112,9 @@ fn load_progress() -> (usize, BestHash) {
 
 fn save_collection(found_number: &BestHash) {
     let mut file = fs::OpenOptions::new()
-        .write(true)
         .append(true)
-        .open("collection.txt")
+        .create(true)
+        .open("resume/collection.txt")
         .unwrap();
 
     if let Err(e) = writeln!(file, "[{}] {} -> {}", found_number.count, found_number.number, found_number.hash) {
@@ -113,9 +124,9 @@ fn save_collection(found_number: &BestHash) {
 
 fn save_best(new_best: &BestHash) {
     let mut file = fs::OpenOptions::new()
-        .write(true)
         .append(true)
-        .open("bests.txt")
+        .create(true)
+        .open("resume/bests.txt")
         .unwrap();
 
     if let Err(e) = writeln!(file, "[{}] {} -> {}", new_best.count, new_best.number, new_best.hash) {
@@ -125,7 +136,7 @@ fn save_best(new_best: &BestHash) {
 
 fn save_progress(current_num: usize, current_best: &BestHash) {
     let data = String::from(format!("n{}\nb{}\nz{}\nh{}\n", current_num, current_best.count, current_best.number, current_best.hash));
-    fs::write("savedprogress.txt", data).expect("Error saving to file.");
+    fs::write("resume/savedprogress.txt", data).expect("Error saving to file.");
 }
 
 fn main() {
